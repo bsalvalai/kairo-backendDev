@@ -198,7 +198,7 @@ app.post('/api/recovery', [
   body('password').isLength({ min: 6 }).withMessage('Password debe tener al menos 6 caracteres'),
 ], async (req, res) => {
   try {
-    const { email, recoveryAnswer } = req.body;
+    const { email, password, recoveryAnswer } = req.body;
 
     // Buscar usuario por email
     const { data: user, error } = await supabase
