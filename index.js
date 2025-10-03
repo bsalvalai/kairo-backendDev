@@ -1,4 +1,7 @@
-require('dotenv').config();
+const dotenv = require('dotenv');
+const path = require('path');
+
+dotenv.config({ path: path.resolve(__dirname, '.env') });
 const express = require('express');
 const cors = require('cors');
 const { createClient } = require('@supabase/supabase-js');
@@ -13,8 +16,10 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-SUPABASE_URL="https://jgbddbtwopfwtmktgraw.supabase.co"
-SUPABASE_ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpnYmRkYnR3b3Bmd3Rta3RncmF3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1OTM1Njg0MiwiZXhwIjoyMDc0OTMyODQyfQ.vNfQIqA7BSsI9d4Dve75nz2SkvjYFlivZZLSrSiiokk"
+
+const SUPABASE_URL="https://jgbddbtwopfwtmktgraw.supabase.co"
+
+const SUPABASE_ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpnYmRkYnR3b3Bmd3Rta3RncmF3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1OTM1Njg0MiwiZXhwIjoyMDc0OTMyODQyfQ.vNfQIqA7BSsI9d4Dve75nz2SkvjYFlivZZLSrSiiokk"
 
 // Configuración de Supabase
 const supabaseUrl = SUPABASE_URL;
@@ -28,7 +33,8 @@ app.post('/api/register', [
   body('username').isLength({ min: 3 }).withMessage('Username debe tener al menos 3 caracteres'),
   body('password').isLength({ min: 6 }).withMessage('Password debe tener al menos 6 caracteres'),
   body('firstName').notEmpty().withMessage('Nombre es requerido'),
-  body('lastName').notEmpty().withMessage('Apellido es requerido')
+  body('lastName').notEmpty().withMessage('Apellido es requerido'),
+  body('recoveryAnswer').notEmpty().withMessage('Pregunta de recuperación es requerida'),
 ], async (req, res) => {
   try {
     // Validar datos de entrada
@@ -41,7 +47,7 @@ app.post('/api/register', [
       });
     }
 
-    const { email, username, password, firstName, lastName } = req.body;
+    const { email, username, password, firstName, lastName, recoveryAnswer } = req.body;
 
     // Verificar si el usuario ya existe
     const { data: existingUser, error: checkError } = await supabase
@@ -69,6 +75,7 @@ app.post('/api/register', [
     // Encriptar contraseña
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
+    const hashedrecoveryAnswer = await bcrypt.hash(recoveryAnswer, saltRounds);
 
     console.log("Contraseña original:", password);
     console.log("Username:", username);
@@ -76,7 +83,7 @@ app.post('/api/register', [
     console.log("Nombre:", firstName);
     console.log("Apellido:", lastName);
     console.log("Contraseña encriptada:", hashedPassword);
-
+    console.log("Pregunta de recuperación encriptada:", hashedrecoveryAnswer);
     // Crear usuario en la base de datos
     const { data, error } = await supabase
       .from('users')
@@ -87,6 +94,7 @@ app.post('/api/register', [
           password: hashedPassword,
           first_name: firstName,
           last_name: lastName,
+          recovery_answer: hashedrecoveryAnswer,
           created_at: new Date().toISOString(),
         }
       ])
@@ -183,12 +191,82 @@ app.post('/api/login', [
   }
 });
 
+// Endpoint de recuperación de contraseña
+app.post('/api/recovery', [
+  body('email').isEmail().withMessage('Email válido requerido'),
+  body('recoveryAnswer').notEmpty().withMessage('Pregunta de recuperación es requerida'),
+  body('password').isLength({ min: 6 }).withMessage('Password debe tener al menos 6 caracteres'),
+], async (req, res) => {
+  try {
+    const { email, recoveryAnswer } = req.body;
+
+    // Buscar usuario por email
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', email)
+      .single();
+
+    if (error || !user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Credenciales inválidas'
+      });
+    }
+
+    // Verificar pregunta de recuperación
+    const isValidrecoveryAnswer = await bcrypt.compare(recoveryAnswer, user.recovery_answer);
+    if (!isValidrecoveryAnswer) {
+      return res.status(401).json({
+        success: false,
+        message: 'Credenciales inválidas'
+      });
+    }
+
+    // Encriptar contraseña
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+    const { data: updatedUser, error: updateError } = await supabase
+    .from('users')
+    .update({ password: hashedPassword })
+    .eq('id', user.id);
+
+    if (updateError) {
+      return res.status(500).json({
+        success: false,
+        message: 'Error al actualizar la contraseña'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Recuperación de contraseña exitosa',
+      user: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        username: updatedUser.username,
+        firstName: updatedUser.first_name,
+        lastName: updatedUser.last_name
+      }
+    });
+
+  } catch (error) {
+    console.error('Error en recuperación de contraseña:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
+    });
+  }
+});
+
 // Endpoint de prueba
-app.get('/api/health', (req, res) => {
+app.get('/api/health', async (req, res) => {
+
   res.json({
     success: true,
     message: 'Servidor funcionando correctamente',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
 });
 
