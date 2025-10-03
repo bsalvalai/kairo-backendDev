@@ -198,6 +198,16 @@ app.post('/api/recovery', [
   body('password').isLength({ min: 6 }).withMessage('Password debe tener al menos 6 caracteres'),
 ], async (req, res) => {
   try {
+    // Validar datos de entrada
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Datos de entrada inválidos',
+        errors: errors.array()
+      });
+    }
+
     const { email, password, recoveryAnswer } = req.body;
 
     // Buscar usuario por email
@@ -207,7 +217,16 @@ app.post('/api/recovery', [
       .eq('email', email)
       .single();
 
-    if (error || !user) {
+    if (error && error.code !== 'PGRST116') {
+      console.error('Error durante la búsqueda del usuario:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Error en el servicio de la base de datos.',
+        details: error.message
+      });
+    }
+
+    if (!user) {
       return res.status(401).json({
         success: false,
         message: 'Credenciales inválidas'
@@ -215,8 +234,8 @@ app.post('/api/recovery', [
     }
 
     // Verificar pregunta de recuperación
-    const isValidrecoveryAnswer = await bcrypt.compare(recoveryAnswer, user.recovery_answer);
-    if (!isValidrecoveryAnswer) {
+    const isValidRecoveryAnswer = await bcrypt.compare(recoveryAnswer, user.recovery_answer);
+    if (!isValidRecoveryAnswer) {
       return res.status(401).json({
         success: false,
         message: 'Credenciales inválidas'
@@ -230,7 +249,8 @@ app.post('/api/recovery', [
     const { data: updatedUser, error: updateError } = await supabase
     .from('users')
     .update({ password: hashedPassword })
-    .eq('id', user.id);
+    .eq('id', user.id)
+    .select();
 
     if (updateError) {
       return res.status(500).json({
@@ -243,11 +263,11 @@ app.post('/api/recovery', [
       success: true,
       message: 'Recuperación de contraseña exitosa',
       user: {
-        id: updatedUser.id,
-        email: updatedUser.email,
-        username: updatedUser.username,
-        firstName: updatedUser.first_name,
-        lastName: updatedUser.last_name
+        id: updatedUser[0].id,
+        email: updatedUser[0].email,
+        username: updatedUser[0].username,
+        firstName: updatedUser[0].first_name,
+        lastName: updatedUser[0].last_name
       }
     });
 
