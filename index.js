@@ -54,7 +54,8 @@ app.post('/api/register', [
       .from('users')
       .select('email, username')
       .or(`email.eq.${email},username.eq.${username}`)
-      .single();
+      .limit(1)
+      .maybeSingle();
 
       if (checkError && checkError.code !== 'PGRST116') {
         console.error('Error durante la verificación de existencia:', checkError);
@@ -77,13 +78,6 @@ app.post('/api/register', [
     const hashedPassword = await bcrypt.hash(password, saltRounds);
     const hashedrecoveryAnswer = await bcrypt.hash(recoveryAnswer, saltRounds);
 
-    console.log("Contraseña original:", password);
-    console.log("Username:", username);
-    console.log("Email:", email);
-    console.log("Nombre:", firstName);
-    console.log("Apellido:", lastName);
-    console.log("Contraseña encriptada:", hashedPassword);
-    console.log("Pregunta de recuperación encriptada:", hashedrecoveryAnswer);
     // Crear usuario en la base de datos
     const { data, error } = await supabase
       .from('users')
@@ -152,7 +146,8 @@ app.post('/api/login', [
       .from('users')
       .select('*')
       .eq('email', email)
-      .single();
+      .limit(1)
+      .maybeSingle();
 
     if (error || !user) {
       return res.status(401).json({
@@ -215,7 +210,8 @@ app.post('/api/recovery', [
       .from('users')
       .select('*')
       .eq('email', email)
-      .single();
+      .limit(1)
+      .maybeSingle();
 
     if (error && error.code !== 'PGRST116') {
       console.error('Error durante la búsqueda del usuario:', error);
@@ -290,7 +286,7 @@ app.get('/api/health', async (req, res) => {
   });
 });
 
-// Manejo de rutas no encontradas
+// Manejo de rutas no encontradas (debe ir al final, después de todas las rutas)
 app.use((req, res) => {
   res.status(404).json({
     success: false,
@@ -298,9 +294,9 @@ app.use((req, res) => {
   });
 });
 
+
 // Iniciar servidor
 app.listen(PORT, () => {
   console.log(`Servidor corriendo en puerto ${PORT}`);
   console.log(`Health check: http://localhost:${PORT}/api/health`);
 });
-
