@@ -29,9 +29,9 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Endpoint de registro
 app.post('/api/register', [
-  body('email').isEmail().withMessage('Email válido requerido'),
+  body('email').isEmail().withMessage('Email inválido'),
   body('username').isLength({ min: 3 }).withMessage('Username debe tener al menos 3 caracteres'),
-  body('password').isLength({ min: 6 }).withMessage('Password debe tener al menos 6 caracteres'),
+  body('password').isLength({ min: 8 }).withMessage('La contraseña debe tener al menos 8 caracteres y 1 número.'),
   body('firstName').notEmpty().withMessage('Nombre es requerido'),
   body('lastName').notEmpty().withMessage('Apellido es requerido'),
   body('recoveryAnswer').notEmpty().withMessage('Pregunta de recuperación es requerida'),
@@ -49,11 +49,11 @@ app.post('/api/register', [
 
     const { email, username, password, firstName, lastName, recoveryAnswer } = req.body;
 
-    // Verificar si el usuario ya existe
+    // Verificar si el username ya existe
     const { data: existingUser, error: checkError } = await supabase
       .from('users')
       .select('email, username')
-      .or(`email.eq.${email},username.eq.${username}`)
+      .eq('username', username)
       .limit(1)
       .maybeSingle();
 
@@ -66,10 +66,33 @@ app.post('/api/register', [
         });
       }
 
+    const { data: existingUserEmail, error: checkErrorEmail } = await supabase
+      .from('users')
+      .select('email')
+      .eq('email', email)
+      .limit(1)
+      .maybeSingle();
+
+      if (checkErrorEmail && checkErrorEmail.code !== 'PGRST116') {
+        console.error('Error durante la verificación de existencia:', checkErrorEmail);
+        return res.status(500).json({
+          success: false,
+          message: 'Error en el servicio de la base de datos.',
+          details: checkErrorEmail.message
+        });
+      }
+
     if (existingUser) {
       return res.status(400).json({
         success: false,
-        message: 'El email o username ya está en uso'
+        message: 'Nombre de usuario ya existente, elija otro.'
+      });
+    }
+
+    if (existingUserEmail) {
+      return res.status(400).json({
+        success: false,
+        message: 'El email ya está en uso, elija otro.'
       });
     }
 
@@ -125,7 +148,7 @@ app.post('/api/register', [
 
 // Endpoint de login
 app.post('/api/login', [
-  body('email').isEmail().withMessage('Email válido requerido'),
+  body('email').notEmpty().withMessage('Email válido requerido'),
   body('password').notEmpty().withMessage('Password es requerido')
 ], async (req, res) => {
   try {
@@ -141,27 +164,88 @@ app.post('/api/login', [
 
     const { email, password } = req.body;
 
-    // Buscar usuario por email
-    const { data: user, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('email', email)
-      .limit(1)
-      .maybeSingle();
+    let user;
 
-    if (error || !user) {
-      return res.status(401).json({
-        success: false,
-        message: 'Credenciales inválidas'
-      });
+    if(email.endsWith('@flowbit.com')) {
+      //Conseguir usuario mediante el correo
+      const { data: userData, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', email)
+        .limit(1)
+        .maybeSingle();
+
+      if(error || !userData) {
+        return res.status(401).json({
+          success: false,
+          message: 'Nombre de usuario/email o contraseña incorrectos'
+        });
+      }
+
+      user = userData;
+    } else {
+      //Conseguir usuario mediante el username
+      const { data: userData, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('username', email)
+        .limit(1)
+        .maybeSingle();
+
+      if(error || !userData) {
+        return res.status(401).json({
+          success: false,
+          message: 'Nombre de usuario/email o contraseña incorrectos'
+        });
+      }
+
+      user = userData;
     }
+
+    //Obtener el número de intentos de login fallidos de la base de datos, y si es mayor a 5, bloquear el login por 5 minutos. Verificar si el timestamp de la última vez que se intentó login es mayor a 5 minutos. Si es mayor, reiniciar el contador de intentos de login fallidos y permitir el login.
+      if(user.count >= 5 && user.last_login_attempt > new Date(Date.now() - 5 * 60 * 1000)) {
+        return res.status(401).json({
+          success: false,
+          message: 'Tu cuenta fue bloqueada por múltiples intentos fallidos. Intentá nuevamente más tarde o contactá al administrador.',
+          remainingTime: 5 * 60 * 1000 - (new Date(Date.now() - user.last_login_attempt).getTime()),
+        });
+      } else {
+        //Reiniciar el contador de intentos de login fallidos
+        const { data: updatedUser, error: updateError } = await supabase
+          .from('users')
+          .update({ count: 0, last_login_attempt: new Date().toISOString() })
+          .eq('id', user.id)
+          .select();
+      }
+
+      if(updateError) {
+        return res.status(500).json({
+          success: false,
+          message: 'Error al actualizar el contador de intentos de login fallidos'
+        });
+      }
 
     // Verificar contraseña
     const isValidPassword = await bcrypt.compare(password, user.password);
     if (!isValidPassword) {
+
+      //Incrementar el contador de intentos de login fallidos
+      const { data: updatedUser, error: updateError } = await supabase
+        .from('users')
+        .update({ count: user.count + 1, last_login_attempt: new Date().toISOString() })
+        .eq('id', user.id)
+        .select();
+
+      if(updateError) {
+        return res.status(500).json({
+          success: false,
+          message: 'Error al actualizar el contador de intentos de login fallidos'
+        });
+      }
+
       return res.status(401).json({
         success: false,
-        message: 'Credenciales inválidas'
+        message: 'Nombre de usuario/email o contraseña incorrectos'
       });
     }
 
@@ -188,9 +272,9 @@ app.post('/api/login', [
 
 // Endpoint de recuperación de contraseña
 app.post('/api/recovery', [
-  body('email').isEmail().withMessage('Email válido requerido'),
+  body('email').isEmail().withMessage('Email inválido'),
   body('recoveryAnswer').notEmpty().withMessage('Pregunta de recuperación es requerida'),
-  body('password').isLength({ min: 6 }).withMessage('Password debe tener al menos 6 caracteres'),
+  body('password').isLength({ min: 8 }).withMessage('Password debe tener al menos 8 caracteres y 1 número.'),
 ], async (req, res) => {
   try {
     // Validar datos de entrada
@@ -257,7 +341,7 @@ app.post('/api/recovery', [
 
     res.json({
       success: true,
-      message: 'Recuperación de contraseña exitosa',
+      message: 'Restablecimiento de contraseña exitoso, por favor inicie sesión.',
       user: {
         id: updatedUser[0].id,
         email: updatedUser[0].email,
