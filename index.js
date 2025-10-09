@@ -203,27 +203,37 @@ app.post('/api/login', [
     }
 
     //Obtener el número de intentos de login fallidos de la base de datos, y si es mayor a 5, bloquear el login por 5 minutos. Verificar si el timestamp de la última vez que se intentó login es mayor a 5 minutos. Si es mayor, reiniciar el contador de intentos de login fallidos y permitir el login.
-      if(user.count >= 5 && user.last_login_attempt > new Date(Date.now() - 5 * 60 * 1000)) {
-        return res.status(401).json({
-          success: false,
-          message: 'Tu cuenta fue bloqueada por múltiples intentos fallidos. Intentá nuevamente más tarde o contactá al administrador.',
-          remainingTime: 5 * 60 * 1000 - (new Date(Date.now() - user.last_login_attempt).getTime()),
-        });
-      } else {
-        //Reiniciar el contador de intentos de login fallidos
-        const { data: updatedUser, error: updateError } = await supabase
-          .from('users')
-          .update({ count: 0, last_login_attempt: new Date().toISOString() })
-          .eq('id', user.id)
-          .select();
+    
+    // Inicializar campos si no existen
+    const userCount = user.count || 0;
+    const lastLoginAttempt = user.last_login_attempt ? new Date(user.last_login_attempt) : new Date(0);
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+    
+    // Si el usuario tiene 5 o más intentos fallidos Y el último intento fue hace menos de 5 minutos, bloquear
+    if(userCount >= 5 && lastLoginAttempt > fiveMinutesAgo) {
+      const remainingTime = Math.max(0, 5 * 60 * 1000 - (Date.now() - lastLoginAttempt.getTime()));
+      return res.status(401).json({
+        success: false,
+        message: 'Tu cuenta fue bloqueada por múltiples intentos fallidos. Intentá nuevamente más tarde o contactá al administrador.',
+        remainingTime: remainingTime,
+      });
+    }
+    
+    // Si el usuario tenía intentos fallidos pero ya pasaron 5 minutos, reiniciar el contador
+    if(userCount >= 5 && lastLoginAttempt <= fiveMinutesAgo) {
+      const { data: updatedUser, error: updateError } = await supabase
+        .from('users')
+        .update({ count: 0, last_login_attempt: new Date().toISOString() })
+        .eq('id', user.id)
+        .select();
 
-          if(updateError) {
-            return res.status(500).json({
-              success: false,
-              message: 'Error al actualizar el contador de intentos de login fallidos'
-            });
-          }
-      }
+        if(updateError) {
+          return res.status(500).json({
+            success: false,
+            message: 'Error al actualizar el contador de intentos de login fallidos'
+          });
+        }
+    }
 
       
 
@@ -234,7 +244,7 @@ app.post('/api/login', [
       //Incrementar el contador de intentos de login fallidos
       const { data: updatedUser, error: updateError } = await supabase
         .from('users')
-        .update({ count: user.count + 1, last_login_attempt: new Date().toISOString() })
+        .update({ count: userCount + 1, last_login_attempt: new Date().toISOString() })
         .eq('id', user.id)
         .select();
 
