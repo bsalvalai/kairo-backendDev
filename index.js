@@ -225,7 +225,9 @@ app.post('/api/login', [
         .from('users')
         .update({ count: 0, last_login_attempt: new Date().toISOString() })
         .eq('id', user.id)
-        .select();
+        .select()
+        .maybeSingle()
+        .limit(1);
 
         if(updateError) {
           return res.status(500).json({
@@ -233,6 +235,8 @@ app.post('/api/login', [
             message: 'Error al actualizar el contador de intentos de login fallidos'
           });
         }
+
+        user = updatedUser[0];
     }
 
       
