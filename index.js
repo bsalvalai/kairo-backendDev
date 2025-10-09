@@ -49,6 +49,23 @@ app.post('/api/register', [
 
     const { email, username, password, firstName, lastName, recoveryAnswer } = req.body;
 
+    //Verificar si la contraseña tiene al menos 8 caracteres y 1 número.
+    if(!password.match(/^(?=.*[0-9])(?=.*[a-zA-Z]).{8,}$/)) {
+      return res.status(400).json({
+        success: false,
+        message: 'La contraseña debe tener al menos 8 caracteres y 1 número.'
+      });
+    }
+
+    //Verificar que el username No puede contener caracteres especiales que no sea “_”(guión bajo) y puede contener números(0-9), Sin limitación de caracteres, No puede contener espacio 
+    if(!username.match(/^[a-zA-Z0-9_]+$/)) {
+      return res.status(400).json({
+        success: false,
+        message: 'El username no puede contener caracteres especiales que no sea “_”(guión bajo) y puede contener números(0-9), no puede contener espacios.'
+      });
+    }
+
+
     // Verificar si el username ya existe
     const { data: existingUser, error: checkError } = await supabase
       .from('users')
