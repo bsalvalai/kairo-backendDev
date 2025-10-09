@@ -236,7 +236,7 @@ app.post('/api/login', [
           });
         }
 
-        user = updatedUser[0];
+        user = updatedUser;
     }
 
       
