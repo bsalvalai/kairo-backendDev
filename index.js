@@ -216,14 +216,16 @@ app.post('/api/login', [
           .update({ count: 0, last_login_attempt: new Date().toISOString() })
           .eq('id', user.id)
           .select();
+
+          if(updateError) {
+            return res.status(500).json({
+              success: false,
+              message: 'Error al actualizar el contador de intentos de login fallidos'
+            });
+          }
       }
 
-      if(updateError) {
-        return res.status(500).json({
-          success: false,
-          message: 'Error al actualizar el contador de intentos de login fallidos'
-        });
-      }
+      
 
     // Verificar contraseña
     const isValidPassword = await bcrypt.compare(password, user.password);
