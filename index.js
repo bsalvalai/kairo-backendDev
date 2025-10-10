@@ -420,7 +420,7 @@ app.post('/api/tasks', [
   body('usernameAsignado').notEmpty().withMessage('El nombre del usuario asignado es requerido'),
   body('prioridad').optional().isIn(['alta', 'media', 'baja']).withMessage('La prioridad debe ser: alta, media o baja'),
   body('fechaVencimiento').optional().isISO8601().withMessage('La fecha de vencimiento debe ser una fecha válida'),
-  body('estado').optional().isIn(['pendiente', 'en_progreso', 'completada', 'cancelada']).withMessage('El estado debe ser: pendiente, en_progreso, completada o cancelada'),
+  body('estado').optional().isIn(['pendiente', 'en progreso', 'completada']).withMessage('El estado debe ser: pendiente, en progreso o completada'),
   body('asignadoPor').optional().isString().withMessage('El campo asignadoPor debe ser texto'),
   body('nota').optional().isString().withMessage('El campo nota debe ser texto'),
   body('esPrioridad').optional().isBoolean().withMessage('El campo esPrioridad debe ser booleano')
@@ -815,7 +815,7 @@ app.put('/api/tasks/:taskId', [
   body('usernameAsignado').optional().notEmpty().withMessage('El nombre del usuario asignado no puede estar vacío'),
   body('prioridad').optional().isIn(['alta', 'media', 'baja']).withMessage('La prioridad debe ser: alta, media o baja'),
   body('fechaVencimiento').optional().isISO8601().withMessage('La fecha de vencimiento debe ser una fecha válida'),
-  body('estado').optional().isIn(['pendiente', 'en_progreso', 'completada', 'cancelada']).withMessage('El estado debe ser: pendiente, en_progreso, completada o cancelada'),
+  body('estado').optional().isIn(['pendiente', 'en progreso', 'completada']).withMessage('El estado debe ser: pendiente, en progreso o completada.'),
   body('asignadoPor').optional().isString().withMessage('El campo asignadoPor debe ser texto'),
   body('nota').optional().isString().withMessage('El campo nota debe ser texto'),
   body('esPrioridad').optional().isBoolean().withMessage('El campo esPrioridad debe ser booleano')
