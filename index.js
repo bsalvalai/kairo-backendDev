@@ -398,9 +398,407 @@ app.get('/api/health', async (req, res) => {
 
   res.json({
     success: true,
-    message: 'Servidor funcionando correctamente',
+    message: 'Servidor funcionando correctamente - SPRINT 3',
     timestamp: new Date().toISOString(),
   });
+});
+
+
+//ENDPOINTS TAREAS
+
+//Crear una tarea
+app.post('/api/tasks', [
+  body('titulo').notEmpty().withMessage('El título es requerido'),
+  body('usernameAsignado').notEmpty().withMessage('El nombre del usuario asignado es requerido'),
+  body('prioridad').optional().isIn(['alta', 'media', 'baja']).withMessage('La prioridad debe ser: alta, media o baja'),
+  body('fechaVencimiento').optional().isISO8601().withMessage('La fecha de vencimiento debe ser una fecha válida'),
+  body('estado').optional().isIn(['pendiente', 'en_progreso', 'completada', 'cancelada']).withMessage('El estado debe ser: pendiente, en_progreso, completada o cancelada'),
+  body('asignadoPor').optional().isString().withMessage('El campo asignadoPor debe ser texto'),
+  body('nota').optional().isString().withMessage('El campo nota debe ser texto'),
+  body('esPrioridad').optional().isBoolean().withMessage('El campo esPrioridad debe ser booleano')
+], async (req, res) => {
+  try {
+    // Validar datos de entrada
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Datos de entrada inválidos',
+        errors: errors.array()
+      });
+    }
+
+    const { titulo, usernameAsignado, prioridad, fechaVencimiento, estado, asignadoPor, nota, esPrioridad } = req.body;
+
+    // Buscar el usuario asignado por username para obtener su ID
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('username', usernameAsignado)
+      .limit(1)
+      .maybeSingle();
+
+    if (userError) {
+      console.error('Error al buscar usuario:', userError);
+      return res.status(500).json({
+        success: false,
+        message: 'Error al buscar el usuario'
+      });
+    }
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Usuario asignado no encontrado'
+      });
+    }
+
+    // Crear la tarea en la base de datos
+    const { data: tareaData, error: tareaError } = await supabase
+      .from('tareas')
+      .insert([
+        {
+          titulo: titulo,
+          prioridad: prioridad || null,
+          fechaVencimiento: fechaVencimiento ? new Date(fechaVencimiento).toISOString() : null,
+          estado: estado || 'pendiente',
+          asignadoPor: asignadoPor || null,
+          nota: nota || null,
+          fechaCreacion: new Date().toISOString(),
+          ultimaActualizacion: new Date().toISOString()
+        }
+      ])
+      .select();
+
+    console.log(tareaData);
+    console.log(tareaError);
+    
+    if (tareaError) {
+      console.error('Error al crear tarea:', tareaError);
+      return res.status(500).json({
+        success: false,
+        message: 'Error interno del servidor al crear la tarea'
+      });
+    }
+
+    // Crear la asignación en la tabla asignaciones
+    const { data: asignacionData, error: asignacionError } = await supabase
+      .from('asignaciones')
+      .insert([
+        {
+          id_user: user.id,
+          id_tarea: tareaData[0].id,
+          esPrioridad: esPrioridad || false
+        }
+      ])
+      .select();
+
+    console.log(asignacionData);
+    console.log(asignacionError);
+
+    if (asignacionError) {
+      console.error('Error al crear asignación:', asignacionError);
+      // Si falla la asignación, eliminamos la tarea creada para mantener consistencia
+      await supabase
+        .from('tareas')
+        .delete()
+        .eq('id', tareaData[0].id);
+      
+      return res.status(500).json({
+        success: false,
+        message: 'Error al asignar la tarea al usuario'
+      });
+    }
+
+    res.status(201).json({
+      success: true,
+      message: 'Tarea creada y asignada exitosamente',
+      tarea: {
+        id: tareaData[0].id,
+        titulo: tareaData[0].titulo,
+        prioridad: tareaData[0].prioridad,
+        fechaCreacion: tareaData[0].fecha_creacion,
+        fechaVencimiento: tareaData[0].fecha_vencimiento,
+        estado: tareaData[0].estado,
+        asignadoPor: tareaData[0].asignado_por,
+        nota: tareaData[0].nota,
+        ultimaActualizacion: tareaData[0].ultima_actualizacion
+      },
+      asignacion: {
+        id: asignacionData[0].id,
+        idUser: asignacionData[0].id_user,
+        idTarea: asignacionData[0].id_tarea,
+        esPrioridad: asignacionData[0].esPrioridad
+      },
+      usuarioAsignado: {
+        username: usernameAsignado,
+        id: user.id
+      }
+    });
+
+  } catch (error) {
+    console.error('Error en creación de tarea:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
+    });
+  }
+});
+
+//Conseguir tareas creadas por un usuario
+app.get('/api/tasks/createdByUser/:username', async (req, res) => {
+  try {
+    const { username } = req.params;
+
+    if (!username) {
+      return res.status(400).json({
+        success: false,
+        message: 'El nombre de usuario es requerido'
+      });
+    }
+
+    // Buscar el usuario por username para obtener su ID
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('username', username)
+      .limit(1)
+      .maybeSingle();
+
+    if (userError) {
+      console.error('Error al buscar usuario:', userError);
+      return res.status(500).json({
+        success: false,
+        message: 'Error al buscar el usuario'
+      });
+    }
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Usuario no encontrado'
+      });
+    }
+
+    // Buscar tareas creadas por este usuario (donde asignado_por contiene el username)
+    const { data: tareas, error: tareasError } = await supabase
+      .from('tareas')
+      .select('*')
+      .eq('asignado_por', username)
+      .order('fecha_creacion', { ascending: false });
+
+    if (tareasError) {
+      console.error('Error al buscar tareas:', tareasError);
+      return res.status(500).json({
+        success: false,
+        message: 'Error al buscar las tareas'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: `Tareas creadas por ${username}`,
+      usuario: {
+        username: username,
+        id: user.id
+      },
+      tareas: tareas.map(tarea => ({
+        id: tarea.id,
+        titulo: tarea.titulo,
+        prioridad: tarea.prioridad,
+        fechaCreacion: tarea.fecha_creacion,
+        fechaVencimiento: tarea.fecha_vencimiento,
+        estado: tarea.estado,
+        asignadoPor: tarea.asignado_por,
+        nota: tarea.nota,
+        ultimaActualizacion: tarea.ultima_actualizacion
+      })),
+      totalTareas: tareas.length
+    });
+
+  } catch (error) {
+    console.error('Error en consulta de tareas creadas:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
+    });
+  }
+});
+
+//Conseguir tareas asignadas a un usuario
+app.get('/api/tasks/assignedToUser/:username', async (req, res) => {
+  try {
+    const { username } = req.params;
+
+    if (!username) {
+      return res.status(400).json({
+        success: false,
+        message: 'El nombre de usuario es requerido'
+      });
+    }
+
+    // Buscar el usuario por username para obtener su ID
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('username', username)
+      .limit(1)
+      .maybeSingle();
+
+    if (userError) {
+      console.error('Error al buscar usuario:', userError);
+      return res.status(500).json({
+        success: false,
+        message: 'Error al buscar el usuario'
+      });
+    }
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Usuario no encontrado'
+      });
+    }
+
+    // Buscar asignaciones para este usuario y obtener las tareas correspondientes
+    const { data: asignaciones, error: asignacionesError } = await supabase
+      .from('asignaciones')
+      .select(`
+        *,
+        tareas (*)
+      `)
+      .eq('id_user', user.id)
+      .order('id', { ascending: false });
+
+    if (asignacionesError) {
+      console.error('Error al buscar asignaciones:', asignacionesError);
+      return res.status(500).json({
+        success: false,
+        message: 'Error al buscar las asignaciones'
+      });
+    }
+
+    const tareasAsignadas = asignaciones.map(asignacion => ({
+      asignacion: {
+        id: asignacion.id,
+        idUser: asignacion.id_user,
+        idTarea: asignacion.id_tarea,
+        esPrioridad: asignacion.esPrioridad
+      },
+      tarea: {
+        id: asignacion.tareas.id,
+        titulo: asignacion.tareas.titulo,
+        prioridad: asignacion.tareas.prioridad,
+        fechaCreacion: asignacion.tareas.fecha_creacion,
+        fechaVencimiento: asignacion.tareas.fecha_vencimiento,
+        estado: asignacion.tareas.estado,
+        asignadoPor: asignacion.tareas.asignado_por,
+        nota: asignacion.tareas.nota,
+        ultimaActualizacion: asignacion.tareas.ultima_actualizacion
+      }
+    }));
+
+    res.json({
+      success: true,
+      message: `Tareas asignadas a ${username}`,
+      usuario: {
+        username: username,
+        id: user.id
+      },
+      tareasAsignadas: tareasAsignadas,
+      totalTareas: tareasAsignadas.length
+    });
+
+  } catch (error) {
+    console.error('Error en consulta de tareas asignadas:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
+    });
+  }
+});
+
+//Actualizar prioridad de tarea asignada
+app.put('/api/tasks/priority/:asignacionId', [
+  body('esPrioridad').isBoolean().withMessage('El campo esPrioridad debe ser booleano')
+], async (req, res) => {
+  try {
+    const { asignacionId } = req.params;
+    const { esPrioridad } = req.body;
+
+    // Validar datos de entrada
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Datos de entrada inválidos',
+        errors: errors.array()
+      });
+    }
+
+    if (!asignacionId) {
+      return res.status(400).json({
+        success: false,
+        message: 'El ID de asignación es requerido'
+      });
+    }
+
+    // Verificar que la asignación existe
+    const { data: asignacionExistente, error: checkError } = await supabase
+      .from('asignaciones')
+      .select('*')
+      .eq('id', asignacionId)
+      .limit(1)
+      .maybeSingle();
+
+    if (checkError) {
+      console.error('Error al verificar asignación:', checkError);
+      return res.status(500).json({
+        success: false,
+        message: 'Error al verificar la asignación'
+      });
+    }
+
+    if (!asignacionExistente) {
+      return res.status(404).json({
+        success: false,
+        message: 'Asignación no encontrada'
+      });
+    }
+
+    // Actualizar la prioridad de la asignación
+    const { data: asignacionActualizada, error: updateError } = await supabase
+      .from('asignaciones')
+      .update({ esPrioridad: esPrioridad })
+      .eq('id', asignacionId)
+      .select();
+
+    if (updateError) {
+      console.error('Error al actualizar asignación:', updateError);
+      return res.status(500).json({
+        success: false,
+        message: 'Error al actualizar la prioridad de la asignación'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Prioridad de asignación actualizada exitosamente',
+      asignacion: {
+        id: asignacionActualizada[0].id,
+        idUser: asignacionActualizada[0].id_user,
+        idTarea: asignacionActualizada[0].id_tarea,
+        esPrioridad: asignacionActualizada[0].esPrioridad
+      }
+    });
+
+  } catch (error) {
+    console.error('Error en actualización de prioridad:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor'
+    });
+  }
 });
 
 // Manejo de rutas no encontradas (debe ir al final, después de todas las rutas)
