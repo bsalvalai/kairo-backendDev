@@ -282,6 +282,213 @@ app.post('/api/login', [
       });
     }
 
+    //UPDATE v2.0.0: Se deberá verificar si el usuario tiene las 6 tareas predefinidas, si no, crearlas.
+
+    //modelo de tarea predefinida
+    const tareasPredefinidas = [
+      //Pendientes
+      {
+          //id
+          titulo: "Propuesta técnica y estimación — e-commerce Grupo Andina",
+          prioridad: "alta",
+          fechaCreacion: new Date().toISOString(),
+          fechaVencimiento: "2025-10-12T23:59:59.000Z",
+          estado: "pendiente",
+          asignadoPor: "Mateo Latigano",
+          nota: "",
+          ultimaActualizacion: new Date().toISOString(),
+      },
+      {
+        //id
+        titulo: "Plan de UAT — app logística LogiTrans",
+        prioridad: "media",
+        fechaCreacion: new Date().toISOString(),
+        fechaVencimiento: "2025-10-15T23:59:59.000Z",
+        estado: "pendiente",
+        asignadoPor: "Mateo Latigano",
+        nota: "",
+        ultimaActualizacion: new Date().toISOString(),
+      },
+
+      //En progreso
+      {
+        //id
+        titulo: "Integración de pagos (MP) — RetailFit, checkout unificado",
+        prioridad: "alta",
+        fechaCreacion: new Date().toISOString(),
+        fechaVencimiento: "2025-10-10T23:59:59.000Z",
+        estado: "en progreso",
+        asignadoPor: "Mateo Latigano",
+        nota: "",
+        ultimaActualizacion: new Date().toISOString(),
+      },
+      {
+        //id
+        titulo: "Tablero PMO de KPIs por proyecto (Flowbit interno)",
+        prioridad: "media",
+        fechaCreacion: new Date().toISOString(),
+        fechaVencimiento: "2025-10-12T23:59:59.000Z",
+        estado: "en progreso",
+        asignadoPor: "Mateo Latigano",
+        nota: "",
+        ultimaActualizacion: new Date().toISOString(),
+      },
+
+      //Completadas
+      {
+        //id
+        titulo: "Kickoff CRM SaludPlus — acta y plan de comunicaciones",
+        prioridad: "baja",
+        fechaCreacion: new Date().toISOString(),
+        fechaVencimiento: "2025-10-05T23:59:59.000Z",
+        estado: "completada",
+        asignadoPor: "Mateo Latigano",
+        nota: "",
+        ultimaActualizacion: new Date().toISOString(),
+      },
+      {
+        //id
+        titulo: "Entrega Sprint 4 AgroData — demo y retro con cliente",
+        prioridad: "media",
+        fechaCreacion: new Date().toISOString(),
+        fechaVencimiento: "2025-10-06T23:59:59.000Z",
+        estado: "completada",
+        asignadoPor: "Mateo Latigano",
+        nota: "",
+        ultimaActualizacion: new Date().toISOString(),
+      },
+    ]
+
+    const asignacionesPredefinidas = [
+      {
+        //id
+        idUser: user.id,
+        //idTarea: tareaData[0].id,
+        esPrioridad: true  // Propuesta técnica y estimación — e-commerce Grupo Andina (Prioridad: Sí)
+      },
+      {
+        //id
+        idUser: user.id,
+        //idTarea: tareaData[1].id,
+        esPrioridad: false  // Plan de UAT — app logística LogiTrans (Prioridad: No)
+      },
+      {
+        //id
+        idUser: user.id,
+        //idTarea: tareaData[2].id,
+        esPrioridad: true  // Integración de pagos (MP) — RetailFit, checkout unificado (Prioridad: Sí)
+      },
+      {
+        //id
+        idUser: user.id,
+        //idTarea: tareaData[3].id,
+        esPrioridad: false  // Tablero PMO de KPIs por proyecto (Flowbit interno) (Prioridad: No)
+      },
+      {
+        //id
+        idUser: user.id,
+        //idTarea: tareaData[4].id,
+        esPrioridad: false  // Kickoff CRM SaludPlus — acta y plan de comunicaciones (Prioridad: No)
+      },
+      {
+        //id
+        idUser: user.id,
+        //idTarea: tareaData[5].id,
+        esPrioridad: true  // Entrega Sprint 4 AgroData — demo y retro con cliente (Prioridad: Sí)
+      }
+    ]
+
+    // Verificar si el usuario ya tiene las tareas predefinidas asignadas
+    const { data: asignacionesExistentes, error: checkAsignacionesError } = await supabase
+      .from('asignaciones')
+      .select(`
+        *,
+        tareas (*)
+      `)
+      .eq('id_user', user.id);
+
+    if (checkAsignacionesError) {
+      console.error('Error al verificar asignaciones existentes:', checkAsignacionesError);
+      return res.status(500).json({
+        success: false,
+        message: 'Error al verificar asignaciones existentes'
+      });
+    }
+
+    // Si el usuario no tiene asignaciones o tiene menos de 6, crear las tareas predefinidas
+    if (!asignacionesExistentes || asignacionesExistentes.length < 6) {
+      console.log('Creando tareas predefinidas para el usuario:', user.username);
+      
+      // Array para almacenar los IDs de las tareas creadas
+      const tareasCreadas = [];
+
+      // Recorrer tareasPredefinidas y crear cada una en Supabase
+      for (let i = 0; i < tareasPredefinidas.length; i++) {
+        const tarea = tareasPredefinidas[i];
+        
+        // Crear la tarea en Supabase
+        const { data: tareaData, error: tareaError } = await supabase
+          .from('tareas')
+          .insert([
+            {
+              titulo: tarea.titulo,
+              prioridad: tarea.prioridad,
+              fechaCreacion: tarea.fechaCreacion,
+              fechaVencimiento: tarea.fechaVencimiento,
+              estado: tarea.estado,
+              asignadoPor: tarea.asignadoPor,
+              nota: tarea.nota,
+              ultimaActualizacion: tarea.ultimaActualizacion
+            }
+          ])
+          .select();
+
+        if (tareaError) {
+          console.error('Error al crear tarea predefinida:', tareaError);
+          return res.status(500).json({
+            success: false,
+            message: 'Error al crear tarea predefinida'
+          });
+        }
+
+        // Guardar el ID de la tarea creada
+        tareasCreadas.push(tareaData[0].id);
+
+        // Crear la asignación correspondiente usando el ID de la tarea creada
+        const asignacion = asignacionesPredefinidas[i];
+        const { data: asignacionData, error: asignacionError } = await supabase
+          .from('asignaciones')
+          .insert([
+            {
+              id_user: asignacion.idUser,
+              id_tarea: tareaData[0].id,
+              esPrioridad: asignacion.esPrioridad
+            }
+          ])
+          .select();
+
+        if (asignacionError) {
+          console.error('Error al crear asignación predefinida:', asignacionError);
+          // Si falla la asignación, eliminar la tarea creada para mantener consistencia
+          await supabase
+            .from('tareas')
+            .delete()
+            .eq('id', tareaData[0].id);
+          
+          return res.status(500).json({
+            success: false,
+            message: 'Error al crear asignación predefinida'
+          });
+        }
+
+        console.log(`Tarea "${tarea.titulo}" creada con ID: ${tareaData[0].id}`);
+      }
+
+      console.log('Todas las tareas predefinidas creadas exitosamente');
+    } else {
+      console.log('El usuario ya tiene las tareas predefinidas asignadas');
+    }
+
     res.json({
       success: true,
       message: 'Login exitoso',
