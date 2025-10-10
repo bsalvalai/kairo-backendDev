@@ -525,12 +525,12 @@ app.post('/api/tasks', [
         id: tareaData[0].id,
         titulo: tareaData[0].titulo,
         prioridad: tareaData[0].prioridad,
-        fechaCreacion: tareaData[0].fecha_creacion,
-        fechaVencimiento: tareaData[0].fecha_vencimiento,
+        fechaCreacion: tareaData[0].fechaCreacion,
+        fechaVencimiento: tareaData[0].fechaVencimiento,
         estado: tareaData[0].estado,
-        asignadoPor: tareaData[0].asignado_por,
+        asignadoPor: tareaData[0].asignadoPor,
         nota: tareaData[0].nota,
-        ultimaActualizacion: tareaData[0].ultima_actualizacion
+        ultimaActualizacion: tareaData[0].ultimaActualizacion
       },
       asignacion: {
         id: asignacionData[0].id,
@@ -588,12 +588,12 @@ app.get('/api/tasks/createdByUser/:username', async (req, res) => {
       });
     }
 
-    // Buscar tareas creadas por este usuario (donde asignado_por contiene el username)
+    // Buscar tareas creadas por este usuario (donde asignadoPor contiene el username)
     const { data: tareas, error: tareasError } = await supabase
       .from('tareas')
       .select('*')
-      .eq('asignado_por', username)
-      .order('fecha_creacion', { ascending: false });
+      .eq('asignadoPor', username)
+      .order('fechaCreacion', { ascending: false });
 
     if (tareasError) {
       console.error('Error al buscar tareas:', tareasError);
@@ -614,12 +614,12 @@ app.get('/api/tasks/createdByUser/:username', async (req, res) => {
         id: tarea.id,
         titulo: tarea.titulo,
         prioridad: tarea.prioridad,
-        fechaCreacion: tarea.fecha_creacion,
-        fechaVencimiento: tarea.fecha_vencimiento,
+        fechaCreacion: tarea.fechaCreacion,
+        fechaVencimiento: tarea.fechaVencimiento,
         estado: tarea.estado,
-        asignadoPor: tarea.asignado_por,
+        asignadoPor: tarea.asignadoPor,
         nota: tarea.nota,
-        ultimaActualizacion: tarea.ultima_actualizacion
+        ultimaActualizacion: tarea.ultimaActualizacion
       })),
       totalTareas: tareas.length
     });
@@ -697,12 +697,12 @@ app.get('/api/tasks/assignedToUser/:username', async (req, res) => {
         id: asignacion.tareas.id,
         titulo: asignacion.tareas.titulo,
         prioridad: asignacion.tareas.prioridad,
-        fechaCreacion: asignacion.tareas.fecha_creacion,
-        fechaVencimiento: asignacion.tareas.fecha_vencimiento,
+        fechaCreacion: asignacion.tareas.fechaCreacion,
+        fechaVencimiento: asignacion.tareas.fechaVencimiento,
         estado: asignacion.tareas.estado,
-        asignadoPor: asignacion.tareas.asignado_por,
+        asignadoPor: asignacion.tareas.asignadoPor,
         nota: asignacion.tareas.nota,
-        ultimaActualizacion: asignacion.tareas.ultima_actualizacion
+        ultimaActualizacion: asignacion.tareas.ultimaActualizacion
       }
     }));
 
@@ -901,12 +901,12 @@ app.put('/api/tasks/:taskId', [
         id: tareaActualizada[0].id,
         titulo: tareaActualizada[0].titulo,
         prioridad: tareaActualizada[0].prioridad,
-        fechaCreacion: tareaActualizada[0].fecha_creacion,
-        fechaVencimiento: tareaActualizada[0].fecha_vencimiento,
+        fechaCreacion: tareaActualizada[0].fechaCreacion,
+        fechaVencimiento: tareaActualizada[0].fechaVencimiento,
         estado: tareaActualizada[0].estado,
-        asignadoPor: tareaActualizada[0].asignado_por,
+        asignadoPor: tareaActualizada[0].asignadoPor,
         nota: tareaActualizada[0].nota,
-        ultimaActualizacion: tareaActualizada[0].ultima_actualizacion
+        ultimaActualizacion: tareaActualizada[0].ultimaActualizacion
       }
     };
 
