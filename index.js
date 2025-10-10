@@ -322,6 +322,14 @@ app.post('/api/recovery', [
 
     const { email, password, recoveryAnswer } = req.body;
 
+    //Verificar si la contraseña tiene al menos 8 caracteres y 1 número.
+    if(!password.match(/^(?=.*[0-9])(?=.*[a-zA-Z]).{8,}$/)) {
+      return res.status(400).json({
+        success: false,
+        message: 'La contraseña debe tener al menos 8 caracteres y 1 número.'
+      });
+    }
+
     // Buscar usuario por email
     const { data: user, error } = await supabase
       .from('users')
