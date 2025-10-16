@@ -3,8 +3,6 @@ const { body, validationResult } = require('express-validator');
 const bcrypt = require('bcryptjs');
 const { createClient } = require('@supabase/supabase-js');
 
-// 🚨 Necesitas importar la función que obtiene el cliente Supabase.
-// Suponiendo que la función 'getSupabaseClient' está en index.js, la importamos.
 const { supabase } = require('../index'); 
 
 const router = express.Router();

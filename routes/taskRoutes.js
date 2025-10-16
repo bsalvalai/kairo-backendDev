@@ -63,12 +63,12 @@ router.post('/', [
                     titulo: titulo,
                     descripcion: descripcion || null, // <- Nuevo campo con valor por defecto null
                     prioridad: prioridad || null,
-                    fecha_vencimiento: fechaVencimiento ? new Date(fechaVencimiento).toISOString() : null,
+                    fechaVencimiento: fechaVencimiento ? new Date(fechaVencimiento).toISOString() : null,
                     estado: estado || 'pendiente',
-                    asignado_por: asignadoPor || null,
+                    asignadoPor: asignadoPor || null,
                     nota: nota || null,
-                    fecha_creacion: new Date().toISOString(),
-                    ultima_actualizacion: new Date().toISOString()
+                    fechaCreacion: new Date().toISOString(),
+                    ultimaActualizacion: new Date().toISOString()
                 }
             ])
             .select();
@@ -87,7 +87,7 @@ router.post('/', [
                 {
                     id_user: user.id,
                     id_tarea: tareaCreada.id,
-                    es_prioridad: esPrioridad || false // Renombrado a snake_case para la DB
+                    esPrioridad: esPrioridad || false // Renombrado a snake_case para la DB
                 }
             ])
             .select();
@@ -172,8 +172,8 @@ router.get('/createdByUser/:username', async (req, res) => {
         const { data: tareas, error: tareasError } = await supabase
             .from('tareas')
             .select('*') // Selecciona todos los campos, incluyendo 'descripcion'
-            .eq('asignado_por', username)
-            .order('fecha_creacion', { ascending: false });
+            .eq('asignadoPor', username)
+            .order('fechaCreacion', { ascending: false });
 
         if (tareasError) {
             console.error('Error al buscar tareas:', tareasError);
@@ -303,11 +303,12 @@ router.patch('/priority/:idTarea', [
     body('username').notEmpty().withMessage('El nombre de usuario asignado es requerido'),
 ], async (req, res) => {
     try {
-        const supabase = getSupabaseClient('service_role');
+        
         if (!supabase) return res.status(500).json({ success: false, message: 'Fallo al inicializar Supabase' });
 
         const { idTarea } = req.params;
         const { username } = req.body;
+
 
         // 1. Buscar el ID del usuario
         const { data: user, error: userError } = await supabase
@@ -331,7 +332,7 @@ router.patch('/priority/:idTarea', [
         // 2. Buscar la asignación actual para obtener el valor de esPrioridad
         const { data: currentAsignacion, error: fetchError } = await supabase
             .from('asignaciones')
-            .select('es_prioridad')
+            .select('esPrioridad')
             .eq('id_tarea', idTarea)
             .eq('id_user', userId)
             .single(); // Usamos single para esperar una sola fila o null
@@ -354,7 +355,7 @@ router.patch('/priority/:idTarea', [
         // 4. Actualizar el campo 'esPrioridad' en la tabla 'asignaciones'
         const { data: updatedAsignacion, error: updateError } = await supabase
             .from('asignaciones')
-            .update({ es_prioridad: nuevaPrioridad }) // Usamos snake_case para la DB
+            .update({ esPrioridad: nuevaPrioridad }) // Usamos snake_case para la DB
             .eq('id_tarea', idTarea)
             .eq('id_user', userId)
             .select();
@@ -497,10 +498,9 @@ router.patch('/status/:id', [
 // ----------------------------------------------------------------
 router.get('/priority/:username', [
     param('username').notEmpty().withMessage('El nombre de usuario es requerido'),
-    validate
+
 ], async (req, res) => {
     try {
-        const supabase = getSupabaseClient('service_role');
         if (!supabase) return res.status(500).json({ success: false, message: 'Fallo al inicializar Supabase' });
 
         const { username } = req.params;
@@ -528,11 +528,11 @@ router.get('/priority/:username', [
         const { data: asignaciones, error: asignacionesError } = await supabase
             .from('asignaciones')
             .select(`
-                es_prioridad,
+                esPrioridad,
                 tareas (*)
             `)
             .eq('id_user', userId) // <-- FILTRO POR USUARIO ESPECÍFICO
-            .eq('es_prioridad', true) // Filtramos solo las asignaciones prioritarias
+            .eq('esPrioridad', true) // Filtramos solo las asignaciones prioritarias
             .order('id_tarea', { ascending: false }); 
 
         if (asignacionesError) {
