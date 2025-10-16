@@ -308,7 +308,7 @@ router.patch('/priority/:idTarea', [
 
         const { idTarea } = req.params;
         const { username } = req.body;
-
+        
 
         // 1. Buscar el ID del usuario
         const { data: user, error: userError } = await supabase
@@ -324,7 +324,7 @@ router.patch('/priority/:idTarea', [
         }
 
         if (!user) {
-            return res.status(404).json({ success: false, message: 'Usuario asignado no encontrado' });
+            return res.status(404).json({ success: false, message: '{username}' });
         }
 
         const userId = user.id;
@@ -402,7 +402,7 @@ router.patch('/note/:id', [
         
         const updateData = { 
             nota: nota,
-            ultima_actualizacion: new Date().toISOString()
+            ultimaActualizacion: new Date().toISOString()
         };
 
         const { data: updatedTarea, error: updateError } = await supabase
@@ -455,7 +455,7 @@ router.patch('/status/:id', [
 
         const updateData = { 
             estado: estado,
-            ultima_actualizacion: new Date().toISOString()
+            ultimaActualizacion: new Date().toISOString()
         };
 
         const { data: updatedTarea, error: updateError } = await supabase
