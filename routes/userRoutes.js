@@ -8,14 +8,7 @@ const saltRounds = 10; // Definimos el factor de encriptación una sola vez
 const MAX_ATTEMPTS = 5; // Límite de intentos fallidos
 const BLOCK_DURATION_MS = 5 * 60 * 1000; // 5 minutos en milisegundos
 
-const SUPABASE_URL="https://jgbddbtwopfwtmktgraw.supabase.co"
-
-const SUPABASE_ANON_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpnYmRkYnR3b3Bmd3Rta3RncmF3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1OTM1Njg0MiwiZXhwIjoyMDc0OTMyODQyfQ.vNfQIqA7BSsI9d4Dve75nz2SkvjYFlivZZLSrSiiokk"
-
-// Configuración de Supabase
-const supabaseUrl = SUPABASE_URL;
-const supabaseKey = SUPABASE_ANON_KEY;
-const supabase = createClient(supabaseUrl, supabaseKey);
+const supabase = require('./supabaseClient');
 
 // ----------------------------------------------------------------
 // POST /register 
