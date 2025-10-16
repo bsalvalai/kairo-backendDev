@@ -42,6 +42,9 @@ app.use((req, res) => {
 });
 
 
+app.listen(PORT, () => {
+    console.log(`✅ Servidor Express corriendo en el puerto ${PORT}`);
+}); 
 const serverless = require('serverless-http');
 
 // Para Vercel: exportar la app como función

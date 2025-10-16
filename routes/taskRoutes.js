@@ -5,7 +5,7 @@ const { createClient } = require('@supabase/supabase-js');
 
 const router = express.Router();
 
-const supabase = require('./supabaseClient');
+const supabase = require('../supabaseClient');
 
 // ----------------------------------------------------------------
 // POST /

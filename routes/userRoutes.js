@@ -8,7 +8,7 @@ const saltRounds = 10; // Definimos el factor de encriptación una sola vez
 const MAX_ATTEMPTS = 5; // Límite de intentos fallidos
 const BLOCK_DURATION_MS = 5 * 60 * 1000; // 5 minutos en milisegundos
 
-const supabase = require('./supabaseClient');
+const supabase = require('../supabaseClient');
 
 // ----------------------------------------------------------------
 // POST /register 
