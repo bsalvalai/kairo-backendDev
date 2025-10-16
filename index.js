@@ -42,5 +42,7 @@ app.use((req, res) => {
 });
 
 
+const serverless = require('serverless-http');
+
 // Para Vercel: exportar la app como función
-module.exports = app;
+module.exports = serverless(app);
