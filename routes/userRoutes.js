@@ -24,7 +24,7 @@ router.post('/register', [
 ], async (req, res) => {
     try {
         // Inicializar Supabase dentro del handler (o usar la instancia que trae el router)
-        // Usamos la función getSupabaseClient para obtener el cliente      
+      
         if (!supabase) {
             return res.status(500).json({ success: false, message: 'Fallo al inicializar Supabase' });
         }
