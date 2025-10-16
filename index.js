@@ -16,6 +16,15 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
+// Configuración de Supabase
+const SUPABASE_URL = "https://jgbddbtwopfwtmktgraw.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpnYmRkYnR3b3Bmd3Rta3RncmF3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1OTM1Njg0MiwiZXhwIjoyMDc0OTMyODQyfQ.vNfQIqA7BSsI9d4Dve75nz2SkvjYFlivZZLSrSiiokk";
+
+const supabaseUrl = SUPABASE_URL;
+const supabaseKey = SUPABASE_ANON_KEY;
+const supabase = createClient(supabaseUrl, supabaseKey);
+module.exports.supabase = supabase;
+
 const userRoutes = require('./routes/userRoutes');
 const taskRoutes = require('./routes/taskRoutes');
 
@@ -40,13 +49,14 @@ app.use((req, res) => {
 });
 
 
-// Iniciar servidor solo si no estamos en modo test
-//if (process.env.NODE_ENV !== 'test') {
-//  app.listen(PORT, () => {
-//    console.log(`Servidor corriendo en puerto ${PORT}`);
-//    console.log(`Health check: http://localhost:${PORT}/api/health`);
-//  });
-//}
+// Para Vercel: exportar la app como función
+module.exports = app;
 
-module.exports.app = app;
+// Para desarrollo local: iniciar servidor solo si no estamos en modo test
+if (process.env.NODE_ENV !== 'test' && !process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`Servidor corriendo en puerto ${PORT}`);
+    console.log(`Health check: http://localhost:${PORT}/api/health`);
+  });
+}
 
