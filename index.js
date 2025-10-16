@@ -44,12 +44,3 @@ app.use((req, res) => {
 
 // Para Vercel: exportar la app como función
 module.exports = app;
-
-// Para desarrollo local: iniciar servidor solo si no estamos en modo test
-if (process.env.NODE_ENV !== 'test' && !process.env.VERCEL) {
-  app.listen(PORT, () => {
-    console.log(`Servidor corriendo en puerto ${PORT}`);
-    console.log(`Health check: http://localhost:${PORT}/api/health`);
-  });
-}
-
